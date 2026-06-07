@@ -47,7 +47,11 @@ public class HookManager {
             addInjector(new INotificationManagerProxy());
             addInjector(new IAlarmManagerProxy());
             addInjector(new IAppWidgetManagerProxy());
-            addInjector(new IAudioManagerProxy());
+            if (BlackBoxCore.get().isAudioManagerProxyEnabled()) {
+                addInjector(new IAudioManagerProxy());
+            } else {
+                Slog.d(TAG, "skip hook: IAudioManagerProxy disabled by ClientConfiguration");
+            }
             addInjector(new IBackupManagerProxy());
             addInjector(new IBluetoothManagerProxy());
             addInjector(new ContentServiceStub());

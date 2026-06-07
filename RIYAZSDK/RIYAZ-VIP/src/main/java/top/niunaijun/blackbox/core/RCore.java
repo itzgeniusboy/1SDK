@@ -153,7 +153,11 @@ public class RCore {
         for (String s : blackRule) {
             get().addBlackRedirect(s);
         }
-        RNative.enableIO();
+        if (BlackBoxCore.get().isNativeIORedirectEnabled()) {
+            RNative.enableIO(BlackBoxCore.get().getNativeHookFlags());
+        } else {
+            Log.d(TAG, "Native I/O redirection hooks disabled by ClientConfiguration");
+        }
     }
 
     private void hideRoot(Map<String, String> rule) {

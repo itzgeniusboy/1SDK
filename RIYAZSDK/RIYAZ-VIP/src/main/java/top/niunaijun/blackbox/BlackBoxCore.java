@@ -433,6 +433,21 @@ public class BlackBoxCore extends ClientConfiguration {
     }
 
     @Override
+    public boolean isAudioManagerProxyEnabled() {
+        return mClientConfiguration.isAudioManagerProxyEnabled();
+    }
+
+    @Override
+    public boolean isNativeIORedirectEnabled() {
+        return mClientConfiguration.isNativeIORedirectEnabled();
+    }
+
+    @Override
+    public int getNativeHookFlags() {
+        return mClientConfiguration.getNativeHookFlags();
+    }
+
+    @Override
     public String getHostPackageName() {
         return mClientConfiguration.getHostPackageName();
     }

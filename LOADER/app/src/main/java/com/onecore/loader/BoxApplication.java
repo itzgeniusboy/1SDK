@@ -68,6 +68,21 @@ public class BoxApplication extends Application {
                 public boolean isEnableDaemonService(){
                     return true;
                 }
+
+                @Override
+                public boolean isAudioManagerProxyEnabled() {
+                    return false;
+                }
+
+                @Override
+                public boolean isNativeIORedirectEnabled() {
+                    return false;
+                }
+
+                @Override
+                public int getNativeHookFlags() {
+                    return 0;
+                }
             });
         } catch (Exception e) {
             e.printStackTrace();

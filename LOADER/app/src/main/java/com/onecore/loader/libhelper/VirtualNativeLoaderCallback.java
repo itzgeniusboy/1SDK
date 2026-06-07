@@ -10,6 +10,7 @@ import java.io.File;
 import top.niunaijun.blackbox.app.configuration.AppLifecycleCallback;
 
 public class VirtualNativeLoaderCallback extends AppLifecycleCallback {
+    private static final String TARGET_PACKAGE = "com.pubg.imobile";
     private static final String LOADER_NAME = "libbgmi.so";
     private static volatile boolean loadedInCurrentProcess = false;
 
@@ -20,7 +21,23 @@ public class VirtualNativeLoaderCallback extends AppLifecycleCallback {
         return "pid=" + Process.myPid();
     }
 
-    private void tryLoadFromContext(Context virtualContext, String stage, String packageName, int userId) {
+    private boolean shouldLoad(String packageName, String processName) {
+        if (!TARGET_PACKAGE.equals(packageName)) {
+            FLog.info("[VLoader] skip package=" + packageName + ", target=" + TARGET_PACKAGE);
+            return false;
+        }
+        if (processName != null && !TARGET_PACKAGE.equals(processName)) {
+            FLog.info("[VLoader] skip non-main process=" + processName);
+            return false;
+        }
+        return true;
+    }
+
+    private void tryLoadFromContext(Context virtualContext, String stage, String packageName, String targetProcessName, int userId) {
+        if (!shouldLoad(packageName, targetProcessName)) {
+            return;
+        }
+
         long ts = System.currentTimeMillis();
         String processName = getProcessName();
 
@@ -55,17 +72,7 @@ public class VirtualNativeLoaderCallback extends AppLifecycleCallback {
     }
 
     @Override
-    public void beforeCreateApplication(String packageName, String processName, Context context, int userId) {
-        tryLoadFromContext(context, "beforeCreateApplication", packageName, userId);
-    }
-
-    @Override
-    public void beforeApplicationOnCreate(String packageName, String processName, Application application, int userId) {
-        tryLoadFromContext(application, "beforeApplicationOnCreate", packageName, userId);
-    }
-
-    @Override
-    public void beforeMainApplicationAttach(Application application, Context context) {
-        tryLoadFromContext(context, "beforeMainApplicationAttach", application != null ? application.getPackageName() : "unknown", 0);
+    public void afterApplicationOnCreate(String packageName, String processName, Application application, int userId) {
+        tryLoadFromContext(application, "afterApplicationOnCreate", packageName, processName, userId);
     }
 }
