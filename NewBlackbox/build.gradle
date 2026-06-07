@@ -1,0 +1,28 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+    dependencies {
+        classpath 'org.lsposed.lsparanoid:gradle-plugin:0.5.2'
+        classpath 'com.github.CodingGay:BlackObfuscator-ASPlugin:3.9'
+    }
+}
+
+plugins {
+alias(libs.plugins.android.application) apply false
+    alias(libs.plugins.jetbrains.kotlin.android) apply false
+    alias(libs.plugins.android.library) apply false
+}
+
+ext {
+    compileSdkVersion = 35
+    targetSdkVersion = 28 
+
+    minSdk = 21
+    versionCode = 400
+    versionName = "4.0.0"
+    xVersion = '1.1.0'
+    hiddenApiBypass = '4.3'
+}

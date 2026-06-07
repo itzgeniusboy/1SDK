@@ -1,0 +1,146 @@
+plugins {
+    id 'com.android.library'
+    id 'kotlin-android'
+    id 'top.niunaijun.blackobfuscator'
+    id 'org.lsposed.lsparanoid'
+}
+
+android {
+    compileSdkVersion 34
+    buildToolsVersion '34.0.4'
+
+    defaultConfig {
+        minSdkVersion 24
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+        consumerProguardFiles 'proguard.txt'
+        ndk {
+            abiFilters "arm64-v8a"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path file('./src/main/cpp/CMakeLists.txt')
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+
+    aaptOptions {
+        cruncherEnabled = false
+        useNewCruncher = false
+    }
+
+    buildFeatures {
+        aidl true
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+        warningsAsErrors false
+        disable "UnusedResources", 'RestrictedApi'
+        textOutput "stdout"
+        textReport false
+        check 'NewApi', 'InlinedApi'
+    }
+
+    namespace "top.niunaijun.blackbox"
+    ndkVersion '24.0.8215888'
+} // ✅ CLOSING BRACE ADDED HERE
+
+tasks.withType(Javadoc) {
+    options.addStringOption('Xdoclint:none', '-quiet')
+    options.addStringOption('encoding', 'UTF-8')
+    options.addStringOption('charSet', 'UTF-8')
+}
+/*
+// BlackObfuscator configuration (outside android block)
+BlackObfuscator {
+    enabled true
+    depth 3
+    obfClass = [
+       //api 
+        "android.MetaCore.AdvancedPopupHelper",
+        "android.MetaCore.db",
+        "android.MetaCore.nk",
+        "android.MetaCore.PermissionManager",
+        "android.MetaCore.RemoteManager",
+        "android.MetaCore.Service.MetaActivationService",
+        "net_62v.external.MetaActivationManager",
+        "net_62v.external.MetaStorageManager",
+        //api end
+        
+        "top.niunaijun.blackbox.BlackBoxCore",
+        "top.niunaijun.blackbox.app.BActivityThread",
+        "top.niunaijun.blackbox.app.LauncherActivity",
+        "top.niunaijun.blackbox.app.configuration.AppLifecycleCallback",
+        "top.niunaijun.blackbox.app.configuration.ClientConfiguration", // ✅ comma added
+        "top.niunaijun.blackbox.core.GmsCore",
+        "top.niunaijun.blackbox.core.NativeCore",
+        "top.niunaijun.blackbox.core.env.BEnvironment",
+        "top.niunaijun.blackbox.core.env.AppSystemEnv",
+        "top.niunaijun.blackbox.core.system.DaemonService",
+        "top.niunaijun.blackbox.core.system.ServiceManager", // ✅ comma added
+        "top.niunaijun.blackbox.core.system.user.BUserHandle",
+        "top.niunaijun.blackbox.core.system.user.BUserInfo",
+        "top.niunaijun.blackbox.entity.pm.InstallOption",
+        "top.niunaijun.blackbox.entity.pm.InstallResult",
+        "top.niunaijun.blackbox.entity.pm.InstalledModule", // ✅ comma added
+        "top.niunaijun.blackbox.fake.hook.HookManager",
+        "top.niunaijun.blackbox.proxy.ProxyManifest",
+        "top.niunaijun.blackbox.fake.frameworks.BXposedManager",
+        "top.niunaijun.blackbox.fake.frameworks.BActivityManager",
+        "top.niunaijun.blackbox.fake.frameworks.BJobManager", // ✅ comma added
+        "top.niunaijun.blackbox.fake.frameworks.BPackageManager",
+        "top.niunaijun.blackbox.fake.frameworks.BStorageManager",
+        "top.niunaijun.blackbox.fake.frameworks.BUserManager",
+        "top.niunaijun.blackbox.fake.delegate.ContentProviderDelegate",
+        "top.niunaijun.blackbox.utils.FileUtils", // ✅ comma added
+        "top.niunaijun.blackbox.utils.ShellUtils",
+        "top.niunaijun.blackbox.utils.Slog",
+        "top.niunaijun.blackbox.utils.compat.BuildCompat",
+        "top.niunaijun.blackbox.utils.compat.BundleCompat",
+        "top.niunaijun.blackbox.utils.compat.XposedParserCompat", // ✅ comma added
+        "top.niunaijun.blackbox.utils.provider.ProviderCall",
+        "top.niunaijun.blackbox.fake.service.IPackageManagerProxy",
+        "top.niunaijun.blackbox.fake.service.IActivityManagerProxy"  // ✅ last item – no comma
+    ]
+    // obfMethod property removed (not supported)
+}
+*/
+dependencies {
+    implementation fileTree(dir: "libs", include: ["*.jar", "*.aar"])
+    implementation 'androidx.appcompat:appcompat:1.2.0'
+    implementation 'com.github.tiann:FreeReflection:3.2.2'
+    implementation 'com.airbnb.android:lottie:6.0.0'
+    implementation 'com.github.CodingGay.BlackReflection:core:1.1.4'
+    annotationProcessor 'com.github.CodingGay.BlackReflection:compiler:1.1.4'
+    implementation 'net.lingala.zip4j:zip4j:2.11.5'
+
+    // 🔥 NEW: Kotlin standard library
+   // implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+
+    // 🔥 NEW: AndroidX annotations for @Keep
+    implementation 'androidx.annotation:annotation:1.7.0'
+}

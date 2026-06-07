@@ -1,0 +1,20 @@
+{
+  "allFiles": [
+    {
+      "file": "/storage/emulated/0/KESHAV LOADER/vbox-sdk/vbox-sdk/src/main/java/top/niunaijun/blackbox/BlackBoxCore.java",
+      "selection": {
+        "end": {
+          "column": 0,
+          "index": 0,
+          "line": 0
+        },
+        "start": {
+          "column": 0,
+          "index": 0,
+          "line": 0
+        }
+      }
+    }
+  ],
+  "selectedFile": "/storage/emulated/0/KESHAV LOADER/vbox-sdk/vbox-sdk/src/main/java/top/niunaijun/blackbox/BlackBoxCore.java"
+}
