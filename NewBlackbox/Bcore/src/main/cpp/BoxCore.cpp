@@ -12,7 +12,7 @@
 #include "Utils/HexDump.h"
 #include "hidden_api.h"
 
-// ========== ADDED for safe delayed hooks ==========
+// ========== Optional experimental UE4 hooks (disabled by default) ==========
 #include <sys/mman.h>
 #include <spawn.h>
 #include <dobby.h>
@@ -22,6 +22,9 @@
 #include <chrono>
 #include <errno.h>
 #include <android/log.h>
+#ifndef BB_ENABLE_EXPERIMENTAL_UE4_HOOKS
+#define BB_ENABLE_EXPERIMENTAL_UE4_HOOKS 0
+#endif
 // =================================================
 
 struct {
@@ -83,7 +86,10 @@ void nativeHook(JNIEnv *env) {
     FileSystemHook::init();
     VMClassLoaderHook::init(env);
     BinderHook::init(env);
-    DexFileHook::init(env);
+    // UE4/BGMI is sensitive to late DexFile hook trampolines during native
+    // library/audio startup. RIYAZSDK does not install this hook, so keep it
+    // disabled for loader-game compatibility.
+    // DexFileHook::init(env);
 }
 
 void hideXposed(JNIEnv *env, jclass clazz) {
@@ -130,6 +136,7 @@ bool disableResourceLoading(JNIEnv *env, jclass clazz) {
     return true;
 }
 
+#if BB_ENABLE_EXPERIMENTAL_UE4_HOOKS
 // ========== HOOK: mprotect ==========
 static int (*original_mprotect)(void *addr, size_t len, int prot) = nullptr;
 
@@ -214,19 +221,25 @@ void install_posix_spawn_hook() {
     }
 }
 // ==========================================
+#endif // BB_ENABLE_EXPERIMENTAL_UE4_HOOKS
 
 void enableIO(JNIEnv *env, jclass clazz) {
     ALOGD("set enableIO");
     IO::init(env);
     nativeHook(env);
-    
-    // ===== DELAYED HOOK INSTALLATION (safety) =====
+
+#if BB_ENABLE_EXPERIMENTAL_UE4_HOOKS
+    // Experimental hooks patch libc/security-SDK entry points from a detached
+    // thread.  That races with UE4 audio/native initialization and can leave
+    // hooked libraries touching destroyed pthread mutexes, so production BGMI
+    // builds keep them off unless explicitly enabled at compile time.
     std::thread([](){
         std::this_thread::sleep_for(std::chrono::seconds(2));
         install_mprotect_hook();
         install_anogs_hooks();
         install_posix_spawn_hook();
     }).detach();
+#endif
 }
 
 static JNINativeMethod gMethods[] = {

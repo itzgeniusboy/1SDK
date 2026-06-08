@@ -39,7 +39,7 @@ import top.niunaijun.blackbox.fake.service.ILauncherAppsProxy;
 import top.niunaijun.blackbox.fake.service.ILocationManagerProxy;
 import top.niunaijun.blackbox.fake.service.IMediaRouterServiceProxy;
 import top.niunaijun.blackbox.fake.service.IMediaSessionManagerProxy;
-import top.niunaijun.blackbox.fake.service.IAudioServiceProxy;
+import top.niunaijun.blackbox.fake.service.IAudioManagerProxy;
 import top.niunaijun.blackbox.fake.service.ISensorPrivacyManagerProxy;
 import top.niunaijun.blackbox.fake.service.ContentResolverProxy;
 import top.niunaijun.blackbox.fake.service.IWebViewUpdateServiceProxy;
@@ -60,7 +60,6 @@ import top.niunaijun.blackbox.fake.service.DeviceIdProxy;
 import top.niunaijun.blackbox.fake.service.GoogleAccountManagerProxy;
 import top.niunaijun.blackbox.fake.service.AuthenticationProxy;
 import top.niunaijun.blackbox.fake.service.AndroidIdProxy;
-import top.niunaijun.blackbox.fake.service.AudioPermissionProxy;
 
 import top.niunaijun.blackbox.fake.service.INetworkManagementServiceProxy;
 import top.niunaijun.blackbox.fake.service.INotificationManagerProxy;
@@ -124,7 +123,7 @@ public class HookManager {
             addInjector(new IUserManagerProxy());
             addInjector(new RestrictionsManagerStub());
             addInjector(new IMediaSessionManagerProxy());
-            addInjector(new IAudioServiceProxy());
+            addInjector(new IAudioManagerProxy());
             addInjector(new ISensorPrivacyManagerProxy());
             addInjector(new ContentResolverProxy());
             addInjector(new IWebViewUpdateServiceProxy());
@@ -148,7 +147,9 @@ public class HookManager {
             addInjector(new GoogleAccountManagerProxy());
             addInjector(new AuthenticationProxy());
             addInjector(new AndroidIdProxy());
-            addInjector(new AudioPermissionProxy());
+            // Do not install AudioPermissionProxy here.  RIYAZSDK only keeps the
+            // package-name-normalizing IAudioManagerProxy, which is safer for UE4
+            // AudioTrack startup than a broad permission/audio-state proxy.
             addInjector(new ILocationManagerProxy());
             addInjector(new IStorageManagerProxy());
             addInjector(new ILauncherAppsProxy());

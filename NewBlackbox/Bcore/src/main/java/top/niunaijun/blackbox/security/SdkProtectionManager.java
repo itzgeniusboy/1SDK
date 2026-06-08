@@ -19,6 +19,23 @@ public class SdkProtectionManager {
             "/clone/", "/sandbox/", "/niunaijun/", "/bcore/", "/vbox/"
     };
 
+    private static final boolean ENABLE_NATIVE_LIBRARY_MEDIATION = true;
+    private static final boolean ENABLE_NATIVE_SIGNAL_HANDLER = true;
+
+    private static final boolean sNativeAvailable;
+
+    static {
+        boolean loaded = false;
+        try {
+            System.loadLibrary("sdk_protection");
+            loaded = true;
+            Slog.i(TAG, "Native SDK protection library loaded");
+        } catch (Throwable e) {
+            Slog.w(TAG, "Native SDK protection library unavailable: " + e.getMessage());
+        }
+        sNativeAvailable = loaded;
+    }
+
     private static SdkProtectionManager sInstance;
     private boolean mEnabled;
 
@@ -35,8 +52,16 @@ public class SdkProtectionManager {
         mEnabled = enabled;
         Slog.i(TAG, "setEnabled=" + enabled);
         if (enabled) {
-            mediateLibraryLoading();
-            ensureSignalCompatibility();
+            if (!sNativeAvailable) {
+                Slog.i(TAG, "Native SDK protection skipped because library is unavailable");
+                return;
+            }
+            if (ENABLE_NATIVE_LIBRARY_MEDIATION) {
+                mediateLibraryLoading();
+            }
+            if (ENABLE_NATIVE_SIGNAL_HANDLER) {
+                ensureSignalCompatibility();
+            }
             virtualizePaths();
         }
     }
@@ -47,7 +72,7 @@ public class SdkProtectionManager {
 
     public void onGameLaunch(String packageName) {
         Slog.i(TAG, "onGameLaunch: " + packageName);
-        if (mEnabled) {
+        if (mEnabled && sNativeAvailable && ENABLE_NATIVE_LIBRARY_MEDIATION) {
             mediateLibraryLoading();
         }
     }
@@ -69,6 +94,7 @@ public class SdkProtectionManager {
     }
 
     private void mediateLibraryLoading() {
+        if (!sNativeAvailable) return;
         try {
             mediateLibraryLoadingNative();
         } catch (UnsatisfiedLinkError e) {
@@ -77,6 +103,7 @@ public class SdkProtectionManager {
     }
 
     private void ensureSignalCompatibility() {
+        if (!sNativeAvailable) return;
         try {
             ensureSignalCompatibilityNative();
         } catch (UnsatisfiedLinkError e) {
@@ -85,6 +112,7 @@ public class SdkProtectionManager {
     }
 
     private void virtualizePaths() {
+        if (!sNativeAvailable) return;
         try {
             virtualizePathsNative();
         } catch (UnsatisfiedLinkError e) {
