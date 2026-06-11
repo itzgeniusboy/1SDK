@@ -1,34 +1,36 @@
 package top.niunaijun.blackbox.core;
 
-import android.os.Binder;
-import android.os.Build;
 import android.os.Process;
-import android.util.Log;
 import androidx.annotation.Keep;
-import android.content.Context;
 import java.io.File;
-import java.util.List;
-import dalvik.system.DexFile;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.app.BActivityThread;
-import top.niunaijun.blackbox.utils.compat.DexFileCompat;
 
 public class RNative {
     
     public static final String TAG = "RNative";
-    private static boolean isInjected = false;
-    public static String libtarget = "libbgmi.so";
+    public static final int HOOK_BASE = 1;
+    public static final int HOOK_UNIX_FILE_SYSTEM = 1 << 1;
+    public static final int HOOK_VM_CLASS_LOADER = 1 << 2;
+    public static final int HOOK_SYSTEM_PROPERTIES = 1 << 3;
+    public static final int HOOK_RUNTIME_LOAD = 1 << 4;
+    public static final int HOOK_LINUX_IO = 1 << 5;
+    public static final int HOOK_BINDER = 1 << 6;
+    public static final int HOOK_ALL = HOOK_BASE
+            | HOOK_UNIX_FILE_SYSTEM
+            | HOOK_VM_CLASS_LOADER
+            | HOOK_SYSTEM_PROPERTIES
+            | HOOK_RUNTIME_LOAD
+            | HOOK_LINUX_IO
+            | HOOK_BINDER;
 
     static {
         System.loadLibrary("RIYAZcore");
-        File file = new File(BlackBoxCore.getContext().getFilesDir(), "loader/" + libtarget);
-        if (file.exists()) {
-            System.load(file.getAbsolutePath());
-        }
     }
 
     public static native void init(int apiLevel);
     public static native void enableIO();
+    public static native void enableIO(int hookFlags);
     public static native void addIORule(String targetPath, String relocatePath);
     public static native void hideXposed();
     

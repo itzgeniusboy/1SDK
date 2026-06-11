@@ -110,17 +110,37 @@ JavaVM *BoxCore::getJavaVM() {
     return VMEnv.vm;
 }
 
-void nativeHook(JNIEnv *env) {
+enum NativeHookFlags {
+    HOOK_BASE = 1,
+    HOOK_UNIX_FILE_SYSTEM = 1 << 1,
+    HOOK_VM_CLASS_LOADER = 1 << 2,
+    HOOK_SYSTEM_PROPERTIES = 1 << 3,
+    HOOK_RUNTIME_LOAD = 1 << 4,
+    HOOK_LINUX_IO = 1 << 5,
+    HOOK_BINDER = 1 << 6,
+    HOOK_ALL = HOOK_BASE | HOOK_UNIX_FILE_SYSTEM | HOOK_VM_CLASS_LOADER |
+               HOOK_SYSTEM_PROPERTIES | HOOK_RUNTIME_LOAD | HOOK_LINUX_IO | HOOK_BINDER
+};
+
+void nativeHook(JNIEnv *env, jint hookFlags) {
     if (env == nullptr) return;
 
-    // Initialize all hooks with proper error handling
-    BaseHook::init(env);
-    UnixFileSystemHook::init(env);
-    VMClassLoaderHook::init(env);
-    SystemPropertiesHook::init(env);
-    RuntimeHook::init(env);
-    LinuxHook::init(env);
-    BinderHook::init(env);
+    if (hookFlags < 0) {
+        hookFlags = HOOK_ALL;
+    }
+    if (hookFlags == 0) {
+        ALOGD("nativeHook: all native hooks disabled");
+        return;
+    }
+
+    // Initialize only the hooks requested by ClientConfiguration.
+    if ((hookFlags & HOOK_BASE) != 0) BaseHook::init(env);
+    if ((hookFlags & HOOK_UNIX_FILE_SYSTEM) != 0) UnixFileSystemHook::init(env);
+    if ((hookFlags & HOOK_VM_CLASS_LOADER) != 0) VMClassLoaderHook::init(env);
+    if ((hookFlags & HOOK_SYSTEM_PROPERTIES) != 0) SystemPropertiesHook::init(env);
+    if ((hookFlags & HOOK_RUNTIME_LOAD) != 0) RuntimeHook::init(env);
+    if ((hookFlags & HOOK_LINUX_IO) != 0) LinuxHook::init(env);
+    if ((hookFlags & HOOK_BINDER) != 0) BinderHook::init(env);
     // DexFileHook might be needed – uncomment if available
     // DexFileHook::init(env);
 }
@@ -191,18 +211,23 @@ void addIORule(JNIEnv *env, jclass clazz, jstring target_path, jstring relocate_
     if (relocate != nullptr) env->ReleaseStringUTFChars(relocate_path, relocate);
 }
 
-void enableIO(JNIEnv *env, jclass clazz) {
-    ALOGD("set enableIO");
+void enableIOWithFlags(JNIEnv *env, jclass clazz, jint hookFlags) {
+    ALOGD("set enableIO flags=%d", hookFlags);
     if (env == nullptr) return;
 
     IO::init(env);
-    nativeHook(env);
+    nativeHook(env, hookFlags);
+}
+
+void enableIO(JNIEnv *env, jclass clazz) {
+    enableIOWithFlags(env, clazz, HOOK_ALL);
 }
 
 static JNINativeMethod gMethods[] = {
         {"hideXposed", "()V",                                   (void *) hideXposed},
         {"addIORule",  "(Ljava/lang/String;Ljava/lang/String;)V", (void *) addIORule},
         {"enableIO",   "()V",                                   (void *) enableIO},
+        {"enableIO",   "(I)V",                                  (void *) enableIOWithFlags},
         {"init",       "(I)V",                                  (void *) init},
 };
 
