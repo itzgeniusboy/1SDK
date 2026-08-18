@@ -6,6 +6,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.widget.Toast;
 
+import com.zoro.loader.utils.FLog;
+
 import net.lingala.zip4j.ZipFile;
 
 import java.io.File;
@@ -39,6 +41,7 @@ public class DownloadZip {
     }
 
     public void startDownload(String downloadUrl) {
+        FLog.info("Native library download started. url=" + downloadUrl);
         File zipFile = new File(context.getFilesDir(), ZIP_FILE_NAME);
         if (zipFile.exists()) {
             progressDialog.setTitle("Updating");
@@ -53,19 +56,23 @@ public class DownloadZip {
 
             handler.post(() -> {
                 progressDialog.setMessage("Finishing...");
+                FLog.info("Native library download completed success=" + success);
                 if (success) {
                     String zipPath = zipFile.getAbsolutePath();
                     String outputDir = context.getFilesDir().getAbsolutePath();
                     String password = PASSJKPAPA();
+                    FLog.info("Extracting native library archive: " + zipPath);
 
                     if (unzipEncrypted(zipPath, outputDir, password)) {
                         moveSoFiles(new File(outputDir, "loader"));
                         zipFile.delete();
                         Toast.makeText(context, "Online Lib download successful!✅", Toast.LENGTH_LONG).show();
                     } else {
+                        FLog.error("Native library archive extraction failed");
                         Toast.makeText(context, "Failed to extract ZIP. Check ZIP and password.", Toast.LENGTH_LONG).show();
                     }
                 } else {
+                    FLog.error("Native library download failed");
                     Toast.makeText(context, "Download failed. Check internet connection.❌", Toast.LENGTH_LONG).show();
                 }
                 progressDialog.dismiss();
@@ -91,10 +98,12 @@ public class DownloadZip {
                 output.write(data, 0, count);
             }
 
-            return outputZip.exists();
+            boolean exists = outputZip.exists();
+            FLog.info("Downloaded archive exists=" + exists + ", bytes=" + (exists ? outputZip.length() : 0));
+            return exists;
 
         } catch (Exception e) {
-            e.printStackTrace();
+            FLog.error("Native library download exception", e);
             return false;
         }
     }
@@ -104,9 +113,10 @@ public class DownloadZip {
             ZipFile zipFile = new ZipFile(zipPath, password.toCharArray());
             zipFile.extractAll(outputDir);
             setPermissions(new File(outputDir));
+            FLog.info("Native library archive extracted successfully");
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            FLog.error("Native library extraction exception", e);
             return false;
         }
     }
@@ -120,8 +130,9 @@ public class DownloadZip {
             for (File soFile : files) {
                 try {
                     Files.move(soFile.toPath(), new File(loaderFolder, soFile.getName()).toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    FLog.info("Moved native library: " + soFile.getName());
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    FLog.error("Failed moving native library " + soFile.getName(), e);
                 }
             }
         }

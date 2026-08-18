@@ -1,37 +1,28 @@
 package com.zoro.loader.utils;
 
-import android.util.Log;
-import com.zoro.loader.BuildConfig;
+public final class FLog {
+    public static final String TAG = "ZoroLoader";
 
-public class FLog {
-    public static final String TAG = FLog.class.getSimpleName();
-    
+    private FLog() {
+    }
+
     public static void debug(String msg) {
-        if (!BuildConfig.DEBUG) {
-            return;
-        }
-        Log.d(TAG, msg);
+        DiagnosticLogger.log("DEBUG", msg);
     }
-    
+
     public static void info(String msg) {
-        if (!BuildConfig.DEBUG) {
-            return;
-        }
-        Log.i(TAG, msg);
+        DiagnosticLogger.log("INFO", msg);
     }
-    
+
     public static void warning(String msg) {
-        if (!BuildConfig.DEBUG) {
-            return;
-        }
-        Log.w(TAG, msg);
+        DiagnosticLogger.log("WARN", msg);
     }
-    
+
     public static void error(String msg) {
-        if (!BuildConfig.DEBUG) {
-            return;
-        }
-        Log.e(TAG, msg);
+        DiagnosticLogger.log("ERROR", msg);
+    }
+
+    public static void error(String where, Throwable throwable) {
+        DiagnosticLogger.exception(where, throwable);
     }
 }
-

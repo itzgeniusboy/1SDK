@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import top.niunaijun.blackbox.core.env.BEnvironment;
+import com.zoro.loader.utils.FLog;
 
 public class FileCopyTask {
 
@@ -35,7 +36,10 @@ public class FileCopyTask {
 
     public boolean isObbCopied(String packageName) {
         File destDir = BEnvironment.getExternalObbDir(packageName, 0);
-        return destDir.exists() && destDir.isDirectory() && destDir.list().length > 0;
+        String[] children = destDir.list();
+        boolean copied = destDir.exists() && destDir.isDirectory() && children != null && children.length > 0;
+        FLog.info("OBB state package=" + packageName + ", path=" + destDir + ", copied=" + copied);
+        return copied;
     }
 
     public void copyObbFolderAsync(final String packageName, final CopyCallback callback) {
@@ -61,18 +65,21 @@ public class FileCopyTask {
                 File destDir = BEnvironment.getExternalObbDir(packageName, 0);
 
                 if (!sourceDir.exists() || !sourceDir.isDirectory()) {
-                    errorMessage = "OBB not found!";
+                    errorMessage = "OBB not found at " + sourceDir;
+                    FLog.error(errorMessage);
                     return false;
                 }
 
                 if (!destDir.exists() && !destDir.mkdirs()) {
-                    errorMessage = "Destination directory creation failed!";
+                    errorMessage = "Destination directory creation failed: " + destDir;
+                    FLog.error(errorMessage);
                     return false;
                 }
 
                 File[] files = sourceDir.listFiles();
                 if (files == null || files.length == 0) {
-                    errorMessage = "No files found to copy!";
+                    errorMessage = "No files found to copy in " + sourceDir;
+                    FLog.error(errorMessage);
                     return false;
                 }
 
@@ -97,8 +104,10 @@ public class FileCopyTask {
                         inputStream.close();
                         outputStream.close();
                     }
+                    FLog.info("OBB copy completed. files=" + files.length + ", bytes=" + copiedBytes);
                 } catch (IOException e) {
                     errorMessage = "Error copying files: " + e.getMessage();
+                    FLog.error("OBB copy failed", e);
                     return false;
                 }
                 return true;
@@ -115,8 +124,10 @@ public class FileCopyTask {
 
                 AlertDialog.Builder builder = new AlertDialog.Builder(activity);
                 if (result) {
+                    FLog.info("OBB copy UI completed successfully");
                     builder.setTitle("Success").setMessage("Copy Successful!");
                 } else {
+                    FLog.error("OBB copy UI failed: " + errorMessage);
                     builder.setTitle("Error").setMessage(errorMessage);
                 }
                 builder.setCancelable(false).setPositiveButton("OK", null).show();

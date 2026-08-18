@@ -309,6 +309,17 @@
 
                 </androidx.cardview.widget.CardView>
 
+                <Button
+                     android:layout_height="48dp"
+                     android:layout_width="match_parent"
+                     android:layout_marginBottom="12dp"
+                     android:backgroundTint="#8E44AD"
+                     android:textColor="#FFFFFF"
+                     android:textAllCaps="true"
+                     android:text="SHARE LOADER LOG"
+                     android:id="@+id/shareLogs"
+                     android:textStyle="bold" />
+
                 <TextView
                      android:layout_height="wrap_content"
                      android:layout_width="match_parent"

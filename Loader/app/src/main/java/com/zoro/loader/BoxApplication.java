@@ -4,8 +4,8 @@ import android.app.Application;
 import android.content.Context;
 import android.util.Log;
 
+import com.zoro.loader.utils.DiagnosticLogger;
 import com.zoro.loader.utils.FLog;
-import com.zoro.loader.utils.FPrefs;
 
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.app.configuration.ClientConfiguration;
@@ -15,7 +15,6 @@ public class BoxApplication extends Application {
     public static final String STATUS_BY = "online";
     public static BoxApplication gApp;
 
-    // 🔐 Native method declaration
     private native String BoxApp();
 
     public static BoxApplication get() {
@@ -24,40 +23,39 @@ public class BoxApplication extends Application {
 
     static {
         try {
-            // 🔥 Library load ho rahi hai
             System.loadLibrary("MCoreEsp");
-        } catch (UnsatisfiedLinkError w) {
-            FLog.error(w.getMessage() != null ? w.getMessage() : "Load lib error");
+            Log.i("ZoroLoader", "Native library MCoreEsp loaded");
+        } catch (UnsatisfiedLinkError error) {
+            FLog.error("Native library MCoreEsp load failed", error);
         }
     }
 
     @Override
     protected void attachBaseContext(Context base) {
+        DiagnosticLogger.init(base.getApplicationContext());
+        FLog.info("Application.attachBaseContext started");
         super.attachBaseContext(base);
         try {
             BlackBoxCore.get().doAttachBaseContext(base, new ClientConfiguration() {
-                // @Override HATAYA - ab compiler error nahi dega
                 public String getHostPackageName() {
                     return base.getPackageName();
                 }
 
-                // @Override HATAYA
                 public boolean isHideRoot() {
                     return true;
                 }
 
-                // @Override HATAYA
                 public boolean isHideXposed() {
                     return true;
                 }
 
-                // @Override HATAYA
                 public boolean isEnableDaemonService() {
                     return true;
                 }
             });
-        } catch (Exception e) {
-            e.printStackTrace();
+            FLog.info("BlackBoxCore.doAttachBaseContext completed");
+        } catch (Throwable throwable) {
+            FLog.error("BlackBoxCore.doAttachBaseContext failed", throwable);
         }
     }
 
@@ -65,19 +63,26 @@ public class BoxApplication extends Application {
     public void onCreate() {
         super.onCreate();
         gApp = this;
-        BlackBoxCore.get().doCreate();
+        FLog.info("Application.onCreate started");
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            FLog.error("Uncaught exception on thread " + thread.getName(), throwable);
+            android.os.Process.killProcess(android.os.Process.myPid());
+        });
+
+        try {
+            BlackBoxCore.get().doCreate();
+            FLog.info("BlackBoxCore.doCreate completed");
+        } catch (Throwable throwable) {
+            FLog.error("BlackBoxCore.doCreate failed", throwable);
+        }
 
         try {
             String key = BoxApp();
-            Log.d("LICENSE_DEBUG", "KEY: " + key);
-
-            MetaActivationManager.activateSdk(BoxApp());    
-            //   MetaActivationManager.verifyLicense(Context, String)
-            //   MetaActivationManager.verifyLicense(this, key);
-
-        } catch (Exception exception) {
-            exception.printStackTrace();
-            FLog.error("License Verification Failed: " + exception.getMessage());
+            FLog.info("Activation key obtained: " + (key == null ? "null" : "length=" + key.length()));
+            MetaActivationManager.activateSdk(key);
+            FLog.info("MetaActivationManager.activateSdk completed");
+        } catch (Throwable throwable) {
+            FLog.error("License/SDK activation failed", throwable);
         }
     }
 }
