@@ -37,6 +37,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.Locale;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import android.util.Log;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.env.BEnvironment;
@@ -74,6 +78,106 @@ public class FileCopyTask {
 
     public static File getExternalDataDir(String packageName) {
         return BEnvironment.getExternalDataDir(packageName, BlackBoxCore.getUserId());
+    }
+
+    /**
+     * Returns storage roots visible to the Loader. Besides the primary shared
+     * storage root, Android exposes removable volumes through getExternalFilesDirs().
+     * We derive the volume root from each app-specific path so the OBB lookup can
+     * also work with paths such as /storage/ABCD-1234/Android/obb/<package>.
+     */
+    private List<File> getStorageRoots() {
+        Set<String> seen = new LinkedHashSet<>();
+        List<File> roots = new ArrayList<>();
+
+        addStorageRoot(roots, seen, Environment.getExternalStorageDirectory());
+
+        try {
+            File[] externalFilesDirs = activity.getExternalFilesDirs(null);
+            if (externalFilesDirs != null) {
+                for (File externalFilesDir : externalFilesDirs) {
+                    addStorageRoot(roots, seen, getVolumeRoot(externalFilesDir));
+                }
+            }
+        } catch (Exception e) {
+            Log.w("OBBCopy", "Unable to enumerate getExternalFilesDirs: " + e.getMessage());
+        }
+
+        // Last-resort volume discovery for devices that do not expose a
+        // removable volume through getExternalFilesDirs().
+        File storageDir = new File("/storage");
+        File[] storageVolumes = storageDir.listFiles();
+        if (storageVolumes != null) {
+            for (File volume : storageVolumes) {
+                if (volume != null && volume.isDirectory()
+                        && !"emulated".equals(volume.getName())
+                        && !"self".equals(volume.getName())) {
+                    addStorageRoot(roots, seen, volume);
+                }
+            }
+        }
+
+        for (File root : roots) {
+            Log.d("OBBCopy", "Storage root candidate: " + root.getAbsolutePath()
+                    + ", exists=" + root.exists() + ", readable=" + root.canRead());
+        }
+        return roots;
+    }
+
+    private void addStorageRoot(List<File> roots, Set<String> seen, File root) {
+        if (root == null) return;
+        File normalized = getVolumeRoot(root);
+        if (normalized == null) return;
+        String path = normalized.getAbsolutePath();
+        if (seen.add(path)) roots.add(normalized);
+    }
+
+    private File getVolumeRoot(File path) {
+        if (path == null) return null;
+        String absolutePath = path.getAbsolutePath();
+        String androidMarker = File.separator + "Android" + File.separator;
+        int markerIndex = absolutePath.indexOf(androidMarker);
+        if (markerIndex > 0) {
+            return new File(absolutePath.substring(0, markerIndex));
+        }
+        return path;
+    }
+
+    private List<File> getObbCandidates(String packageName) {
+        List<File> candidates = new ArrayList<>();
+        for (File root : getStorageRoots()) {
+            candidates.add(new File(root, "Android/obb/" + packageName));
+        }
+        return candidates;
+    }
+
+    private File findObbSourceDir(String packageName) {
+        File fallback = null;
+        for (File candidate : getObbCandidates(packageName)) {
+            File[] files = candidate.listFiles();
+            Log.d("OBBCopy", "OBB candidate: " + candidate.getAbsolutePath()
+                    + ", exists=" + candidate.exists()
+                    + ", readable=" + candidate.canRead()
+                    + ", files=" + (files == null ? "null" : files.length));
+            if (candidate.exists() && candidate.isDirectory()) {
+                if (fallback == null) fallback = candidate;
+                if (files != null && files.length > 0) return candidate;
+            }
+        }
+        return fallback;
+    }
+
+    private File findDataSourceDir(String packageName, File obbSourceDir) {
+        File obbRoot = getVolumeRoot(obbSourceDir);
+        if (obbRoot != null) {
+            File sameVolumeData = new File(obbRoot, "Android/data/" + packageName);
+            if (sameVolumeData.exists()) return sameVolumeData;
+        }
+        for (File root : getStorageRoots()) {
+            File candidate = new File(root, "Android/data/" + packageName);
+            if (candidate.exists()) return candidate;
+        }
+        return obbRoot == null ? null : new File(obbRoot, "Android/data/" + packageName);
     }
 
     public boolean isObbCopied(String packageName) {
@@ -359,8 +463,9 @@ public class FileCopyTask {
             return;
         }
 
-        File sourceDataDirCheck = new File(Environment.getExternalStorageDirectory(), "Android/data/" + packageName);
-        boolean dataSourceAvailable = sourceDataDirCheck.exists();
+        File sourceObbDirCheck = findObbSourceDir(packageName);
+        File sourceDataDirCheck = findDataSourceDir(packageName, sourceObbDirCheck);
+        boolean dataSourceAvailable = sourceDataDirCheck != null && sourceDataDirCheck.exists();
 
         boolean obbAlreadyCopied = isObbCopied(packageName);
         Log.d("OBBCopy", "isObbCopied: " + obbAlreadyCopied + ", dataSourceAvailable: " + dataSourceAvailable);
@@ -389,25 +494,26 @@ public class FileCopyTask {
 
             @Override
             protected Boolean doInBackground(Void... params) {
-                File rootStorage = Environment.getExternalStorageDirectory();
-                File sourceObbDir = new File(rootStorage, "Android/obb/" + packageName);
-                File sourceDataDir = new File(rootStorage, "Android/data/" + packageName);
+                File sourceObbDir = findObbSourceDir(packageName);
+                File sourceDataDir = findDataSourceDir(packageName, sourceObbDir);
                 File destObbDir = getExternalObbDir(packageName);
                 File destDataDir = getExternalDataDir(packageName);
                 copiedToPath = destObbDir.getAbsolutePath();
 
                 Log.d("OBBCopy", "=== OBB Copy Debug ===");
                 Log.d("OBBCopy", "Package: " + packageName);
-                Log.d("OBBCopy", "Source OBB: " + sourceObbDir.getAbsolutePath());
-                Log.d("OBBCopy", "Source exists: " + sourceObbDir.exists() + ", canRead: " + sourceObbDir.canRead());
+                Log.d("OBBCopy", "Source OBB: " + (sourceObbDir == null ? "null" : sourceObbDir.getAbsolutePath()));
+                Log.d("OBBCopy", "Source exists: " + (sourceObbDir != null && sourceObbDir.exists())
+                        + ", canRead: " + (sourceObbDir != null && sourceObbDir.canRead()));
                 Log.d("OBBCopy", "Dest OBB: " + destObbDir.getAbsolutePath());
                 Log.d("OBBCopy", "Dest exists: " + destObbDir.exists());
                 Log.d("OBBCopy", "Dest parent: " + destObbDir.getParentFile().getAbsolutePath());
                 Log.d("OBBCopy", "Dest parent exists: " + destObbDir.getParentFile().exists());
                 Log.d("OBBCopy", "isExternalStorageManager: " + (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ? Environment.isExternalStorageManager() : "N/A (pre-R)"));
 
-                if (!sourceObbDir.exists() || !sourceObbDir.canRead()) {
-                    errorMsg = "Source OBB not found or unreadable! Path: " + sourceObbDir.getAbsolutePath();
+                if (sourceObbDir == null || !sourceObbDir.exists() || !sourceObbDir.isDirectory() || !sourceObbDir.canRead()) {
+                    errorMsg = "Source OBB not found or unreadable. Checked primary storage and removable SD-card volumes.";
+                    if (sourceObbDir != null) errorMsg += " Last path: " + sourceObbDir.getAbsolutePath();
                     Log.e("OBBCopy", errorMsg);
                     return false;
                 }
@@ -453,7 +559,7 @@ public class FileCopyTask {
                         }
                     }
 
-                    if (sourceDataDir.exists()) {
+                    if (sourceDataDir != null && sourceDataDir.exists()) {
                         File[] sourceDataChildren = sourceDataDir.listFiles();
                         if (sourceDataChildren == null) {
                             dataCopyWarning = "Android/data access denied by system; continuing with OBB only";
