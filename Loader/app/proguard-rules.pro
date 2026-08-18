@@ -24,6 +24,8 @@
 -keep class top.niunaijun.blackbox.core.NativeCore { *; }
 -keep class top.niunaijun.blackbox.BlackBoxCore { *; }
 -keep class top.niunaijun.blackbox.app.BActivityThread { *; }
+#-keep class top.niunaijun.blackbox.core.system.api.MetaActivationManager { *; }
+
 -keep class org.lsposed.hiddenapibypass.** { *; }
 
 -keep class top.niunaijun.jnihook.** {*; }
@@ -31,17 +33,11 @@
 -keep class android.** {*; }
 -keep class com.android.** {*; }
 
--keep class androidx.work.** { *; }
--keep class androidx.startup.** { *; }
--keep class androidx.lifecycle.** { *; }
--keep class androidx.emoji2.** { *; }
-
-
--keep class com.zoro.loader.** { *; }
--keep class com.zoro.loader.floating.** { *; }
--keep class com.zoro.loader.floating.FloatLogo { *; }
--keep class com.zoro.loader.floating.Overlay { *; }
--keep class com.zoro.loader.floating.ESPView { *; }
+-keep class com.Jagdish.Loader.** { *; }
+-keep class com.Jagdish.Loader.floating.** { *; }
+-keep class com.Jagdish.Loader.floating.FloatLogo { *; }
+-keep class com.Jagdish.Loader.floating.Overlay { *; }
+-keep class com.Jagdish.Loader.floating.ESPView { *; }
 -keep class android.** { *; }
 -keepattributes *Annotation*
 -dontwarn top.niunaijun.**
