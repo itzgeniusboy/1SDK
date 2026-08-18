@@ -20,7 +20,17 @@ public class VirtualNativeLoaderCallback extends AppLifecycleCallback {
         return "pid=" + Process.myPid();
     }
 
+    private boolean isTargetPackage(String packageName) {
+        return "com.pubg.imobile".equals(packageName)
+                || "com.tencent.ig".equals(packageName)
+                || "com.pubg.krmobile".equals(packageName);
+    }
+
     private void tryLoadFromContext(Context virtualContext, String stage, String packageName, int userId) {
+        if (!isTargetPackage(packageName)) {
+            FLog.info("[VLoader] skip non-target package=" + packageName + ", stage=" + stage);
+            return;
+        }
         long ts = System.currentTimeMillis();
         String processName = getProcessName();
 

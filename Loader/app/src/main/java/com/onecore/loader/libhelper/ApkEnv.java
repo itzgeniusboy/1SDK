@@ -117,9 +117,9 @@ public class ApkEnv {
 
         String target = "libbgmi.so";
         FLog.info("Reference-compatible loader target forced for package " + packageName + ": " + target);
-        syncSdkLoaderTarget(target);
-        forceRNativeStaticLoad();
-        ensureSdkNativeCoreInit();
+        // NativeCore is initialized by the SDK inside the virtual process. Do not
+        // reflectively re-initialize it or preload the game loader in the host process.
+        FLog.info("Deferring loader native initialization to the virtual game process");
 
         String loaderBaseDir = is_online
                 ? new File(BoxApplication.get().getFilesDir(), "loader").toString()
@@ -161,27 +161,11 @@ public class ApkEnv {
         }
 
 
-        File loadCandidate = canonicalTargetFile.exists() ? canonicalTargetFile : loader;
-        try {
-            System.load(loadCandidate.getAbsolutePath());
-            FLog.info("Loaded loader so into host process: " + loadCandidate.getAbsolutePath());
-        } catch (Throwable err) {
-            FLog.error("System.load failed for loader so: " + err.getMessage());
-        }
-
-        File loaderDest = new File(applicationInfo.nativeLibraryDir, packageName.equals("com.miraclegames.farlight84") ? "libfarlight.so" : "libAkAudioVisiual.so");
-
-        if (loaderDest.exists()) loaderDest.delete();
-        try {
-            if (FileUtils.copy(loader.toString(), loaderDest.toString())) {
-                return true;
-            }
-            FLog.error("Loader copy to target nativeLibraryDir returned false, continuing with SDK loader path");
-            return true;
-        } catch(Exception err) {
-            FLog.error("Loader copy to target nativeLibraryDir failed: " + err.getMessage() + ", continuing with SDK loader path");
-            return true;
-        }
+        // The virtual-process callback loads the file from the host files directory
+        // before the game Application is created. Loading it here in the host process
+        // can terminate the Loader or initialize the native library in the wrong VM.
+        FLog.info("Loader staged for virtual process: " + loader.getAbsolutePath());
+        return true;
     }
     
 
