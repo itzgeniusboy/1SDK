@@ -19,6 +19,10 @@ public class BoxApplication extends Application {
         return gApp;
     }
 
+    public static boolean isNativeLoaded() {
+        return nativeLoaded;
+    }
+
     private static volatile boolean nativeLoaded;
 
     @Override

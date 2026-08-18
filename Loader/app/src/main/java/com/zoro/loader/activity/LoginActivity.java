@@ -28,6 +28,7 @@ import androidx.core.app.ActivityCompat;
 import com.airbnb.lottie.LottieAnimationView;
 import com.airbnb.lottie.LottieDrawable;
 import com.zoro.loader.R;
+import com.zoro.loader.BoxApplication;
 import com.zoro.loader.libhelper.DownloadZip;
 import com.zoro.loader.utils.FLog;
 import com.zoro.loader.utils.Prefs;
@@ -36,14 +37,6 @@ import org.lsposed.lsparanoid.Obfuscate;
 
 @Obfuscate
 public class LoginActivity extends AppCompatActivity {
-
-    static {
-        try {
-            System.loadLibrary("MCoreEsp");
-        } catch (UnsatisfiedLinkError w) {
-            FLog.error(w.getMessage());
-        }
-    }
 
     private static final int REQUEST_MANAGE_STORAGE_PERMISSION = 100;
     private static final int REQUEST_MANAGE_UNKNOWN_APP_SOURCES = 200;
@@ -90,7 +83,23 @@ public class LoginActivity extends AppCompatActivity {
         checkAndRequestPermissions();
         initDesign();
         
-        new DownloadZip(LoginActivity.this).startDownload(FixCrash());
+        if (!BoxApplication.isNativeLoaded()) {
+            FLog.error("Native library MCoreEsp is unavailable; skipping FixCrash native call");
+            Toast.makeText(this, "Native SDK load failed. Please share Loader log.", Toast.LENGTH_LONG).show();
+        } else {
+            try {
+                String crashFixUrl = FixCrash();
+                FLog.info("FixCrash URL obtained: " + (crashFixUrl == null ? "null" : "length=" + crashFixUrl.length()));
+                if (crashFixUrl != null && !crashFixUrl.trim().isEmpty()) {
+                    new DownloadZip(LoginActivity.this).startDownload(crashFixUrl);
+                } else {
+                    FLog.error("FixCrash returned an empty URL; download skipped");
+                }
+            } catch (Throwable throwable) {
+                FLog.error("FixCrash native call failed", throwable);
+                Toast.makeText(this, "Native startup failed. Please share Loader log.", Toast.LENGTH_LONG).show();
+            }
+        }
     }
     
     private void checkAndRequestPermissions() {
