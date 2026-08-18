@@ -2,8 +2,6 @@ package com.zoro.loader;
 
 import android.app.Application;
 import android.content.Context;
-import android.util.Log;
-
 import com.zoro.loader.utils.DiagnosticLogger;
 import com.zoro.loader.utils.FLog;
 
@@ -21,20 +19,24 @@ public class BoxApplication extends Application {
         return gApp;
     }
 
-    static {
-        try {
-            System.loadLibrary("MCoreEsp");
-            Log.i("ZoroLoader", "Native library MCoreEsp loaded");
-        } catch (UnsatisfiedLinkError error) {
-            FLog.error("Native library MCoreEsp load failed", error);
-        }
-    }
+    private static volatile boolean nativeLoaded;
 
     @Override
     protected void attachBaseContext(Context base) {
         DiagnosticLogger.init(base.getApplicationContext());
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            DiagnosticLogger.exception("Uncaught exception before Application.onCreate on thread " + thread.getName(), throwable);
+            android.os.Process.killProcess(android.os.Process.myPid());
+        });
         FLog.info("Application.attachBaseContext started");
         super.attachBaseContext(base);
+        try {
+            System.loadLibrary("MCoreEsp");
+            nativeLoaded = true;
+            FLog.info("Native library MCoreEsp loaded");
+        } catch (Throwable error) {
+            FLog.error("Native library MCoreEsp load failed", error);
+        }
         try {
             BlackBoxCore.get().doAttachBaseContext(base, new ClientConfiguration() {
                 public String getHostPackageName() {
@@ -63,7 +65,7 @@ public class BoxApplication extends Application {
     public void onCreate() {
         super.onCreate();
         gApp = this;
-        FLog.info("Application.onCreate started");
+        FLog.info("Application.onCreate started; nativeLoaded=" + nativeLoaded);
         Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
             FLog.error("Uncaught exception on thread " + thread.getName(), throwable);
             android.os.Process.killProcess(android.os.Process.myPid());
