@@ -23,6 +23,7 @@ public class BoxApplication extends Application {
     public static final String STATUS_BY = "online";
     public static BoxApplication gApp;
     private static volatile boolean nativeLoaded;
+    private static volatile boolean virtualCallbackRegistered;
     private boolean isNetworkConnected = false;
 
     public static BoxApplication get() {
@@ -69,6 +70,7 @@ public class BoxApplication extends Application {
                     return true;
                 }
             });
+            registerVirtualNativeCallback();
             DiagnosticLogger.log("BlackBoxCore.attachBaseContext completed");
         } catch (Throwable error) {
             DiagnosticLogger.exception("BlackBoxCore.attachBaseContext failed", error);
@@ -82,7 +84,6 @@ public class BoxApplication extends Application {
         DiagnosticLogger.log("Application.onCreate");
         try {
             BlackBoxCore.get().doCreate();
-            BlackBoxCore.get().addAppLifecycleCallback(new VirtualNativeLoaderCallback());
             DiagnosticLogger.log("BlackBoxCore.doCreate completed");
         } catch (Throwable error) {
             DiagnosticLogger.exception("BlackBoxCore.doCreate failed", error);
@@ -91,6 +92,19 @@ public class BoxApplication extends Application {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
         NetworkConnection.CheckInternet network = new NetworkConnection.CheckInternet(this);
         network.registerNetworkCallback();
+    }
+
+    private void registerVirtualNativeCallback() {
+        if (virtualCallbackRegistered) {
+            return;
+        }
+        synchronized (BoxApplication.class) {
+            if (!virtualCallbackRegistered) {
+                BlackBoxCore.get().addAppLifecycleCallback(new VirtualNativeLoaderCallback());
+                virtualCallbackRegistered = true;
+                DiagnosticLogger.log("VirtualNativeLoaderCallback registered during attachBaseContext");
+            }
+        }
     }
 
     public void showToastWithImage(String msg, int type) {

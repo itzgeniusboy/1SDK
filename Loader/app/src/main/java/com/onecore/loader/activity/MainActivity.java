@@ -123,13 +123,19 @@ public class MainActivity extends Activity {
 
         // Start Game button click listener
         btnStartGame.setOnClickListener(v -> {
-            if (!ApkEnv.getInstance().isInstalled(selectedGamePkg)) {
-                BoxApplication.get().showToastWithImage(Constants.GAME_NOT_INSTALL, TastyToast.ERROR);
-                return;
-            }
+            DiagnosticLogger.log("START GAME pressed package=" + selectedGamePkg);
+            try {
+                if (!ApkEnv.getInstance().isInstalled(selectedGamePkg)) {
+                    DiagnosticLogger.log("START GAME blocked: package not installed=" + selectedGamePkg);
+                    BoxApplication.get().showToastWithImage(Constants.GAME_NOT_INSTALL, TastyToast.ERROR);
+                    return;
+                }
 
-            do_Lib_And_Run(selectedGamePkg);
-            startPatcher();
+                do_Lib_And_Run(selectedGamePkg);
+            } catch (Throwable error) {
+                DiagnosticLogger.exception("START GAME host-side failure", error);
+                BoxApplication.get().showToastWithImage("Game launch failed; check logs", TastyToast.ERROR);
+            }
         });
         
         // Start download - DownloadZip will show its own animation and dialog
@@ -260,20 +266,45 @@ public class MainActivity extends Activity {
     
     public void do_Lib_And_Run(String packageName) {
         CURRENT_PACKAGE = packageName;
+        DiagnosticLogger.log("Preparing game launch package=" + packageName);
         Handler handler = new Handler(Looper.getMainLooper());
         handler.post(() -> {
-            File loaderFile = new File(getFilesDir(), "loader/libbgmi.so");
-            if (!loaderFile.exists()) {
-                BoxApplication.get().showToastWithImage("Loader missing: files/loader/libbgmi.so (wait for Zoro1.zip extraction)", TastyToast.ERROR);
-                return;
-            }
+            try {
+                File loaderFile = new File(getFilesDir(), "loader/libbgmi.so");
+                DiagnosticLogger.log("Launch loader path=" + loaderFile.getAbsolutePath() + ", exists=" + loaderFile.exists() + ", size=" + (loaderFile.exists() ? loaderFile.length() : -1));
+                if (!loaderFile.exists()) {
+                    DiagnosticLogger.log("Launch blocked: native loader missing");
+                    BoxApplication.get().showToastWithImage("Loader missing: files/loader/libbgmi.so (wait for Zoro1.zip extraction)", TastyToast.ERROR);
+                    return;
+                }
 
-            boolean loaderReady = ApkEnv.getInstance().tryAddLoader(packageName);
-            if (!loaderReady) {
-                BoxApplication.get().showToastWithImage("Loader setup failed, check logs", TastyToast.ERROR);
-                return;
+                boolean loaderReady = ApkEnv.getInstance().tryAddLoader(packageName);
+                DiagnosticLogger.log("tryAddLoader result=" + loaderReady + ", package=" + packageName);
+                if (!loaderReady) {
+                    BoxApplication.get().showToastWithImage("Loader setup failed, check logs", TastyToast.ERROR);
+                    return;
+                }
+
+                boolean launched = BlackBoxCore.get().launchApk(packageName, 0);
+                DiagnosticLogger.log("BlackBox launchApk result=" + launched + ", package=" + packageName);
+                if (!launched) {
+                    BoxApplication.get().showToastWithImage("Game launch failed; check logs", TastyToast.ERROR);
+                    return;
+                }
+
+                // Start the overlay only after the virtual activity launch has been requested.
+                handler.postDelayed(() -> {
+                    try {
+                        DiagnosticLogger.log("Starting overlay after virtual launch");
+                        startPatcher();
+                    } catch (Throwable overlayError) {
+                        DiagnosticLogger.exception("Overlay startup failed after game launch", overlayError);
+                    }
+                }, 500L);
+            } catch (Throwable error) {
+                DiagnosticLogger.exception("Virtual game launch failed", error);
+                BoxApplication.get().showToastWithImage("Game launch failed; check logs", TastyToast.ERROR);
             }
-            ApkEnv.getInstance().LaunchApplication(packageName);
         });
     }
     
