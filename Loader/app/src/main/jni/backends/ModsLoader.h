@@ -132,7 +132,7 @@ Java_com_onecore_loader_activity_LoginActivity_Check(JNIEnv *env, jclass clazz, 
     curl = curl_easy_init();
     if (curl) {
         char lol[1000];
-        sprintf(lol, OBFUSCATE("https://manishflash.online/api/connect.php"));
+        sprintf(lol, OBFUSCATE("https://zoro.manishflash.online/connect"));
         curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "POST");
         curl_easy_setopt(curl, CURLOPT_URL, lol);
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);

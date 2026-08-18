@@ -38,7 +38,7 @@ public class DownloadZip {
     private final Context context;
     private final ExecutorService executor;
     private final Handler handler;
-    private String ZIP_FILE_NAME = "Saved.zip";
+    private String ZIP_FILE_NAME = "Zoro1.zip";
     
     // Animation views
     private static LinearLayout downloadOverlay = null;
