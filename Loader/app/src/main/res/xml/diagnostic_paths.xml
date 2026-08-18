@@ -3,4 +3,7 @@
     <files-path
         name="diagnostics"
         path="diagnostics/" />
+    <external-path
+        name="downloads"
+        path="Download/" />
 </paths>

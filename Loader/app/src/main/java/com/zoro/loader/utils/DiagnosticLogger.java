@@ -1,6 +1,7 @@
 package com.zoro.loader.utils;
 
 import android.content.Context;
+import android.os.Environment;
 import android.util.Log;
 
 import java.io.BufferedWriter;
@@ -19,19 +20,35 @@ public final class DiagnosticLogger {
     private static final long MAX_LOG_BYTES = 1024L * 1024L;
     private static final Object LOCK = new Object();
     private static volatile File logFile;
+    private static volatile File publicLogFile;
 
     private DiagnosticLogger() {
     }
 
     public static void init(Context context) {
+        Context appContext = context.getApplicationContext();
         synchronized (LOCK) {
-            File dir = new File(context.getFilesDir(), "diagnostics");
-            if (!dir.exists() && !dir.mkdirs()) {
-                Log.e(TAG, "Unable to create diagnostics directory: " + dir);
+            File dir = new File(appContext.getFilesDir(), "diagnostics");
+            if (!dir.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                dir.mkdirs();
             }
             logFile = new File(dir, "loader.log");
+
+            // The Loader targets an Android version where this public Downloads path
+            // remains writable after WRITE_EXTERNAL_STORAGE is granted. Keeping a
+            // second copy makes the log available even when a virtual process dies.
+            File downloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+            if (!downloads.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                downloads.mkdirs();
+            }
+            publicLogFile = new File(downloads, "com.zoro.loader_diagnostic.log");
         }
-        log("INFO", "Logger initialized. package=" + context.getPackageName() + ", version=" + getVersion(context));
+        log("INFO", "Logger initialized. package=" + appContext.getPackageName()
+                + ", private=" + logFile.getAbsolutePath()
+                + ", public=" + publicLogFile.getAbsolutePath()
+                + ", version=" + getVersion(appContext));
     }
 
     public static File getLogFile(Context context) {
@@ -41,25 +58,21 @@ public final class DiagnosticLogger {
         return logFile;
     }
 
+    public static File getPublicLogFile(Context context) {
+        if (publicLogFile == null) {
+            init(context.getApplicationContext());
+        }
+        return publicLogFile;
+    }
+
     public static void log(String level, String message) {
         String safeMessage = message == null ? "null" : message;
         Log.println(toPriority(level), TAG, safeMessage);
-        File file = logFile;
-        if (file == null) {
-            return;
-        }
         synchronized (LOCK) {
-            try {
-                rotateIfNeeded(file);
-                BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
-                String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(new Date());
-                writer.write(timestamp + " [" + level + "] " + safeMessage);
-                writer.newLine();
-                writer.flush();
-                writer.close();
-            } catch (IOException e) {
-                Log.e(TAG, "Unable to write diagnostic log", e);
-            }
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(new Date());
+            String line = timestamp + " [" + level + "] " + safeMessage;
+            append(logFile, line);
+            append(publicLogFile, line);
         }
     }
 
@@ -73,6 +86,27 @@ public final class DiagnosticLogger {
         log("ERROR", where + ":\n" + trace);
     }
 
+    private static void append(File file, String line) {
+        if (file == null) {
+            return;
+        }
+        try {
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                parent.mkdirs();
+            }
+            rotateIfNeeded(file);
+            BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
+            writer.write(line);
+            writer.newLine();
+            writer.flush();
+            writer.close();
+        } catch (IOException e) {
+            Log.e(TAG, "Unable to write diagnostic log: " + file, e);
+        }
+    }
+
     private static int toPriority(String level) {
         if ("ERROR".equals(level)) return Log.ERROR;
         if ("WARN".equals(level)) return Log.WARN;
@@ -82,7 +116,7 @@ public final class DiagnosticLogger {
 
     private static void rotateIfNeeded(File file) {
         if (file.exists() && file.length() > MAX_LOG_BYTES) {
-            File backup = new File(file.getParentFile(), "loader.log.1");
+            File backup = new File(file.getParentFile(), file.getName() + ".1");
             if (backup.exists()) {
                 //noinspection ResultOfMethodCallIgnored
                 backup.delete();
@@ -100,3 +134,5 @@ public final class DiagnosticLogger {
         }
     }
 }
+
+/* EOF */

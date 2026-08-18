@@ -188,7 +188,10 @@ public class MainActivity extends Activity {
 
     private void shareLogs() {
         try {
-            File logFile = com.zoro.loader.utils.DiagnosticLogger.getLogFile(getApplicationContext());
+            File logFile = com.zoro.loader.utils.DiagnosticLogger.getPublicLogFile(getApplicationContext());
+            if (!logFile.exists()) {
+                logFile = com.zoro.loader.utils.DiagnosticLogger.getLogFile(getApplicationContext());
+            }
             FLog.info("Preparing log share: " + logFile.getAbsolutePath());
             Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".diagnostics", logFile);
             Intent intent = new Intent(Intent.ACTION_SEND);
