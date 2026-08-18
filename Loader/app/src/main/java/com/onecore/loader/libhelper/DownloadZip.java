@@ -358,9 +358,7 @@ public class DownloadZip {
                     
                     String zipPath = new File(context.getFilesDir(), ZIP_FILE_NAME).getAbsolutePath();
                     String outputDir = context.getFilesDir().getAbsolutePath();
-                    String password = PASSJKPAPA();
-
-                    if (unzipEncrypted(zipPath, outputDir, password)) {
+                    if (unzipPasswordless(zipPath, outputDir)) {
                         com.onecore.loader.utils.DiagnosticLogger.log("ZIP extraction succeeded path=" + zipPath);
                         moveSoFiles(new File(outputDir, "loader"));
                         new File(context.getFilesDir(), ZIP_FILE_NAME).delete();
@@ -439,15 +437,19 @@ public class DownloadZip {
         }
     }
 
-    private boolean unzipEncrypted(String zipPath, String outputDir, String password) {
+    private boolean unzipPasswordless(String zipPath, String outputDir) {
         try {
-            ZipFile zipFile = new ZipFile(zipPath, password.toCharArray());
+            ZipFile zipFile = new ZipFile(zipPath);
+            if (zipFile.isEncrypted()) {
+                com.onecore.loader.utils.DiagnosticLogger.log("ZIP extraction blocked: archive is encrypted but Zoro1.zip must be passwordless");
+                return false;
+            }
             zipFile.extractAll(outputDir);
-            com.onecore.loader.utils.DiagnosticLogger.log("ZIP extracted outputDir=" + outputDir);
+            com.onecore.loader.utils.DiagnosticLogger.log("Passwordless ZIP extracted outputDir=" + outputDir);
             setPermissions(new File(outputDir));
             return true;
         } catch (Exception e) {
-            com.onecore.loader.utils.DiagnosticLogger.exception("ZIP extraction exception", e);
+            com.onecore.loader.utils.DiagnosticLogger.exception("Passwordless ZIP extraction exception", e);
             return false;
         }
     }
