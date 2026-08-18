@@ -76,6 +76,14 @@ public class BoxApplication extends Application {
             FLog.error("BlackBoxCore.doCreate failed", throwable);
         }
 
+        String processName = Application.getProcessName();
+        boolean isHostProcess = getPackageName().equals(processName);
+        FLog.info("Process check: name=" + processName + ", host=" + isHostProcess);
+        if (!isHostProcess) {
+            FLog.info("Skipping host-only SDK activation in virtual process");
+            return;
+        }
+
         try {
             String key = BoxApp();
             FLog.info("Activation key obtained: " + (key == null ? "null" : "length=" + key.length()));

@@ -151,9 +151,9 @@ class RemoteManager private constructor() : IRemoteManager.Stub() {
                     lastError = "HTTP $responseCode"
                     if (responseCode in 400..499) break
                 }
-            } catch (e: Exception) {
-                lastError = e.message ?: "Network error"
-                Log.e(TAG, "Activation attempt $attempt failed", e)
+            } catch (t: Throwable) {
+                lastError = t.message ?: "Activation error"
+                Log.e(TAG, "Activation attempt $attempt failed", t)
             } finally {
                 conn?.disconnect()
             }

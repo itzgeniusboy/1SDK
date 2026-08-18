@@ -184,16 +184,12 @@ public class IOCore {
             e.printStackTrace();
         }
         
-        // ✅ Optimization: Use bulk JNI call to add rules
-        String[] keys = rule.keySet().toArray(new String[0]);
-        String[] values = new String[keys.length];
-        for (int i = 0; i < keys.length; i++) {
-            String key = keys[i];
-            String value = rule.get(key);
-            values[i] = value;
-            get().addRedirect(key, value);
+        // Register each rule through the JNI method implemented by the bundled native library.
+        // The newer bulk addIORules method is not exported by this SDK build and crashes
+        // the virtual process with UnsatisfiedLinkError.
+        for (Map.Entry<String, String> entry : rule.entrySet()) {
+            get().addRedirect(entry.getKey(), entry.getValue());
         }
-        NativeCore.addIORules(keys, values);
 
         for (String s : blackRule) {
             get().addBlackRedirect(s);
