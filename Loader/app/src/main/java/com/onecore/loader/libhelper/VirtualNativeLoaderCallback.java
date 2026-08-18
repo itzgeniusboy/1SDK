@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Process;
 import com.onecore.loader.BoxApplication;
 import com.onecore.loader.utils.FLog;
+import top.niunaijun.blackbox.BlackBoxCore;
 import java.io.File;
 import top.niunaijun.blackbox.app.configuration.AppLifecycleCallback;
 
@@ -27,6 +28,7 @@ public class VirtualNativeLoaderCallback extends AppLifecycleCallback {
     }
 
     private void tryLoadFromContext(Context virtualContext, String stage, String packageName, int userId) {
+        FLog.info("[VLoader] callback entered stage=" + stage + ", package=" + packageName + ", process=" + getProcessName());
         if (!isTargetPackage(packageName)) {
             FLog.info("[VLoader] skip non-target package=" + packageName + ", stage=" + stage);
             return;
@@ -34,11 +36,25 @@ public class VirtualNativeLoaderCallback extends AppLifecycleCallback {
         long ts = System.currentTimeMillis();
         String processName = getProcessName();
 
-        File hostLoader = new File(BoxApplication.get().getFilesDir(), "loader/" + LOADER_NAME);
+        Context hostContext = null;
+        try {
+            hostContext = BlackBoxCore.getContext();
+        } catch (Throwable ignored) {
+            // BlackBoxCore context may not be ready during the earliest callback.
+        }
+        if (hostContext == null) {
+            try {
+                hostContext = BoxApplication.get();
+            } catch (Throwable ignored) {
+                // Fall through to the virtual context if the host Application is not ready.
+            }
+        }
+
+        File hostLoader = hostContext != null ? new File(hostContext.getFilesDir(), "loader/" + LOADER_NAME) : null;
         File virtualLoader = virtualContext != null ? new File(virtualContext.getFilesDir(), "loader/" + LOADER_NAME) : null;
 
         FLog.info("[VLoader] ts=" + ts + ", stage=" + stage + ", process=" + processName + ", package=" + packageName + ", user=" + userId);
-        FLog.info("[VLoader] hostPath=" + hostLoader.getAbsolutePath() + ", exists=" + hostLoader.exists() + ", size=" + (hostLoader.exists() ? hostLoader.length() : -1));
+        FLog.info("[VLoader] hostPath=" + (hostLoader == null ? "null" : hostLoader.getAbsolutePath()) + ", exists=" + (hostLoader != null && hostLoader.exists()) + ", size=" + (hostLoader != null && hostLoader.exists() ? hostLoader.length() : -1));
         if (virtualLoader != null) {
             FLog.info("[VLoader] virtualPath=" + virtualLoader.getAbsolutePath() + ", exists=" + virtualLoader.exists() + ", size=" + (virtualLoader.exists() ? virtualLoader.length() : -1));
         }
@@ -48,7 +64,7 @@ public class VirtualNativeLoaderCallback extends AppLifecycleCallback {
             return;
         }
 
-        File loadTarget = hostLoader.exists() ? hostLoader : virtualLoader;
+        File loadTarget = hostLoader != null && hostLoader.exists() ? hostLoader : virtualLoader;
         if (loadTarget == null || !loadTarget.exists()) {
             FLog.error("[VLoader] no loader file found in host/virtual files directories");
             return;
