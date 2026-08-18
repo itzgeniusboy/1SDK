@@ -264,7 +264,7 @@ public class MainActivity extends Activity {
         handler.post(() -> {
             File loaderFile = new File(getFilesDir(), "loader/libbgmi.so");
             if (!loaderFile.exists()) {
-                BoxApplication.get().showToastWithImage("Loader missing: files/loader/libbgmi.so (wait for Saved.zip extraction)", TastyToast.ERROR);
+                BoxApplication.get().showToastWithImage("Loader missing: files/loader/libbgmi.so (wait for Zoro1.zip extraction)", TastyToast.ERROR);
                 return;
             }
 
