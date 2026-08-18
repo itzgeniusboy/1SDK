@@ -1,5 +1,7 @@
 #include <jni.h>
 #include <string>
+#include <algorithm>
+#include <cctype>
 #include <android/log.h>
 #include "backends/openssl/md5.h"
 #include "backends/openssl/sha.h"
@@ -113,10 +115,22 @@ std::string CalcSHA256(std::string s) {
     return result;
 }
 
+std::string NormalizeToken(std::string value) {
+    while (!value.empty() && std::isspace(static_cast<unsigned char>(value.front()))) value.erase(value.begin());
+    while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back()))) value.pop_back();
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return value;
+}
+
 extern "C"
 JNIEXPORT jstring JNICALL
 Java_com_onecore_loader_activity_LoginActivity_Check(JNIEnv *env, jclass clazz, jobject mContext, jstring mUserKey) {
     auto user_key = env->GetStringUTFChars(mUserKey, 0);
+    bValid = false;
+    g_Token.clear();
+    g_Auth.clear();
     std::string hwid = user_key;
     hwid += GetAndroidID(env, mContext);
     hwid += GetDeviceModel(env);
@@ -143,17 +157,37 @@ Java_com_onecore_loader_activity_LoginActivity_Check(JNIEnv *env, jclass clazz, 
         headers = curl_slist_append(headers, "Charset: UTF-8");
         curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
         char data[4096];
-        sprintf(data, "game=PUBG&user_key=%s&serial=%s", user_key, UUID.c_str());
         curl_easy_setopt(curl, CURLOPT_POST, 1);
-        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *) &chunk);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYSTATUS, 0);
         curl_easy_setopt(curl, CURLOPT_USERAGENT, "AbsoluteX/2.0");
+        char *encodedUserKey = curl_easy_escape(curl, user_key, 0);
+        char *encodedSerial = curl_easy_escape(curl, UUID.c_str(), 0);
+        if (encodedUserKey == nullptr || encodedSerial == nullptr) {
+            errMsg = "Request encoding failed";
+            if (encodedUserKey != nullptr) curl_free(encodedUserKey);
+            if (encodedSerial != nullptr) curl_free(encodedSerial);
+            curl_slist_free_all(headers);
+            curl_easy_cleanup(curl);
+            free(chunk.memory);
+            env->ReleaseStringUTFChars(mUserKey, user_key);
+            return env->NewStringUTF(errMsg.c_str());
+        }
+        snprintf(data, sizeof(data), "game=PUBG&user_key=%s&serial=%s", encodedUserKey, encodedSerial);
+        curl_free(encodedUserKey);
+        curl_free(encodedSerial);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 15L);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
         res = curl_easy_perform(curl);
+        long httpCode = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+        __android_log_print(ANDROID_LOG_INFO, "DYNAMIC", "Login HTTP status=%ld responseLength=%zu", httpCode, chunk.size);
         
+        curl_slist_free_all(headers);
         if (res == CURLE_OK) {
             try {
                 json result = json::parse(chunk.memory);
@@ -186,7 +220,8 @@ Java_com_onecore_loader_activity_LoginActivity_Check(JNIEnv *env, jclass clazz, 
                             std::string outputAuth = CalcMD5(auth);
                             g_Token = token;
                             g_Auth = outputAuth;
-                            bValid = g_Token == g_Auth;
+                            bValid = NormalizeToken(g_Token) == NormalizeToken(g_Auth);
+                            __android_log_print(ANDROID_LOG_INFO, "DYNAMIC", "Login token comparison match=%s tokenLength=%zu expectedLength=%zu", bValid ? "true" : "false", g_Token.size(), g_Auth.size());
                             VerifiedActivity = true;
                             
                             if (bValid) {
@@ -218,8 +253,9 @@ Java_com_onecore_loader_activity_LoginActivity_Check(JNIEnv *env, jclass clazz, 
         }
     }
     
-    curl_easy_cleanup(curl);
+    if (curl != nullptr) curl_easy_cleanup(curl);
     free(chunk.memory);
+    env->ReleaseStringUTFChars(mUserKey, user_key);
     
     // Return the appropriate message
     if (bValid) {
