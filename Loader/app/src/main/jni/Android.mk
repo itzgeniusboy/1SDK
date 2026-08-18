@@ -19,7 +19,8 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := MCoreEsp
 
-LOCAL_SRC_FILES :=  main.cpp \
+LOCAL_SRC_FILES :=  Main.cpp \
+           backends/oxorany.cpp
 
 LOCAL_C_INCLUDES := backends/external/curl-android-$(TARGET_ARCH_ABI)/include
 LOCAL_C_INCLUDES += backends/external/openssl-android-$(TARGET_ARCH_ABI)/include

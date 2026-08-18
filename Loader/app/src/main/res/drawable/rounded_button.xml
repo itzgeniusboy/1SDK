@@ -1,0 +1,6 @@
+<!-- res/drawable/rounded_button.xml -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#000000" /> <!-- Button background color -->
+    <corners android:radius="10dp" /> <!-- Rounded corners for the 2dpbutton -->
+    <padding android:left="2dp" android:right="2dp" android:top="2dp" android:bottom="2dp"/>
+</shape>

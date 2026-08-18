@@ -13,6 +13,7 @@ import java.lang.reflect.Method;
 
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.app.BActivityThread;
+import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
 import top.niunaijun.blackbox.fake.hook.ProxyMethod;
 import top.niunaijun.blackbox.fake.provider.FileProviderHandler;
@@ -90,6 +91,12 @@ public class ActivityManagerCommonProxy {
                             isAuthIntent = true;
                         }
                     }
+                    // Facebook OAuth opens an HTTPS page with ACTION_VIEW. The action
+                    // itself does not contain "facebook", so the old code assigned the
+                    // URL to the virtual app package and the browser ended on a blank page.
+                    if (!isAuthIntent && isExternalFacebookWebAuth(intent)) {
+                        isAuthIntent = true;
+                    }
                     
                     if (!isAuthIntent) {
                         intent.setPackage(BActivityThread.getAppPackageName());
@@ -122,6 +129,22 @@ public class ActivityManagerCommonProxy {
                     StartActivityCompat.getFlags(args),
                     StartActivityCompat.getOptions(args));
             return 0;
+        }
+
+        private boolean isExternalFacebookWebAuth(Intent intent) {
+            if (!Intent.ACTION_VIEW.equals(intent.getAction()) || intent.getData() == null) {
+                return false;
+            }
+            String scheme = intent.getData().getScheme();
+            String host = intent.getData().getHost();
+            if (scheme == null || host == null ||
+                    !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+                return false;
+            }
+            String lowerHost = host.toLowerCase(java.util.Locale.ROOT);
+            return lowerHost.equals("facebook.com") || lowerHost.endsWith(".facebook.com")
+                    || lowerHost.equals("facebook.net") || lowerHost.endsWith(".facebook.net")
+                    || lowerHost.equals("fb.me") || lowerHost.endsWith(".fb.me");
         }
 
         private Intent getIntent(Object[] args) {

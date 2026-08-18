@@ -1,3 +1,10 @@
 include ':app'
 
-rootProject.name = "Dynamic Pvt Source"
+include ':Bcore'
+
+include ':Bcore:black-fake'
+include ':Bcore:black-hook'
+
+include ':android-mirror'
+
+rootProject.name = "zoro"

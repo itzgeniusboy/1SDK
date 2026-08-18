@@ -13,83 +13,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: 'gradle'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x ./NewBlackbox/gradlew && chmod +x ./Loader/gradlew
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-    - name: Build NewBlackbox AAR
-      run: |
-        cd NewBlackbox
-        ./gradlew Bcore:assembleRelease
+      - name: Install Android SDK components
+        run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;24.0.8215888" "ndk;29.0.13846066"
 
-    - name: Copy NewBlackbox AAR to Loader
-      run: |
-        mkdir -p Loader/app/libs
-        cp NewBlackbox/Bcore/build/outputs/aar/Bcore-release.aar Loader/app/libs/Bcore-release.aar
+      - name: Grant execute permission for Gradle wrappers
+        run: |
+          chmod +x BlackBox-V2-Engine/gradlew
+          chmod +x Loader/gradlew
 
-    - name: Build Loader (Release)
-      run: |
-        cd Loader
-        ./gradlew assembleRelease
+      - name: Build patched Bcore AAR
+        working-directory: BlackBox-V2-Engine
+        run: ./gradlew :Bcore:assembleRelease --no-daemon
 
-    - name: Build Loader (Debug)
-      run: |
-        cd Loader
-        ./gradlew assembleDebug
+      - name: Replace Loader SDK AAR
+        run: |
+          mkdir -p Loader/app/libs
+          cp BlackBox-V2-Engine/Bcore/build/outputs/aar/Bcore-release.aar Loader/app/libs/Bcore-release.aar
 
-    - name: Upload NewBlackbox AAR as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: NewBlackbox-AAR
-        path: NewBlackbox/Bcore/build/outputs/aar/Bcore-release.aar
+      - name: Build Loader release APK
+        working-directory: Loader
+        run: ./gradlew assembleRelease --no-daemon
 
-    - name: Upload Loader Release APK as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Loader-Release-APK
-        path: Loader/app/build/outputs/apk/release/app-release.apk
+      - name: Upload Bcore AAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bcore-release-AAR
+          path: BlackBox-V2-Engine/Bcore/build/outputs/aar/Bcore-release.aar
+          if-no-files-found: error
 
-    - name: Upload Loader Debug APK as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: Loader-Debug-APK
-        path: Loader/app/build/outputs/apk/debug/app-debug.apk
-        cp NewBlackbox/Bcore/build/outputs/aar/Bcore-release.aar Loader/app/libs/Bcore-release.aar
+      - name: Upload Loader release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Loader-release-APK
+          path: Loader/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
 
-    - name: Build Loader (Release)
-      run: |
-        cd Loader
-        ./gradlew assembleRelease
-
-    - name: Build Loader (Debug)
-      run: |
-        cd Loader
-        ./gradlew assembleDebug
-
-    - name: Upload NewBlackbox AAR as artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: NewBlackbox-AAR
-        path: NewBlackbox/Bcore/build/outputs/aar/Bcore-release.aar
-
-    - name: Upload Loader Release APK as artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: Loader-Release-APK
-        path: Loader/app/build/outputs/apk/release/app-release.apk
-
-    - name: Upload Loader Debug APK as artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: Loader-Debug-APK
-        path: Loader/app/build/outputs/apk/debug/app-debug.apk
-        
+      - name: Upload Loader debug APK when available
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Loader-debug-APK
+          path: Loader/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: ignore
